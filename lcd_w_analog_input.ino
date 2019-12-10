@@ -1,5 +1,5 @@
 #include <LiquidCrystal.h> //library for LCD
-LiquidCrystal lcd(4, 6, 10, 11, 12, 13);
+LiquidCrystal lcd(4, 6, 10, 11, 12, 13);  //pins: 4-RS, 6-E, 10-D4, 11-D5, 12-D6, 13-D7
 
 const int x = A0;
 const int y = A1;
@@ -9,7 +9,7 @@ String yDir;
 
 void setup() {
   lcd.begin(16, 2); //number of cols and rows
-  Serial.begin(9600);
+  //Serial.begin(9600);
 }
 
 void loop() {
