@@ -1,10 +1,10 @@
-int m1[4][4] = {    //m1= coil1: 6&7, coil2: 8&9
+int m1[4][4] = {    //m1
   {0, 1, 1, 0},     //stores each step in an array row
   {0, 1, 0, 1},     //y val is stored and the corresponding...
   {1, 0, 0, 1},     //row is then written to the pins
   {1, 0, 1, 0}
 };   
-int m2[4][4] = {    //m2= coil1: 10&11, coil2: 12&13
+int m2[4][4] = {    //m2
   {0, 1, 1, 0},
   {0, 1, 0, 1},
   {1, 0, 0, 1},
