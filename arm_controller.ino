@@ -10,7 +10,6 @@ int xVal1;  //values assigned later
 int yVal1;
 int sVal1;
 int xVal2;
-int yVal2;
 int sVal2;
 
 int stepsB = 0;     //base # of steps
