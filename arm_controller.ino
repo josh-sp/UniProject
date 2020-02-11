@@ -6,27 +6,24 @@ const int y1 = A1;   //y-axis of analog1
 const int s1 = A2;   //switch of analog1
 const int x2 = A3;   //x-axis of analog2
 const int s2 = A5;   //switch of analog2
-int xVal1;  //values assigned later
-int yVal1;
-int sVal1;
-int xVal2;
-int sVal2;
+int xVal1, yVal1, sVal1;  //values assigned later
+int xVal2, sVal2;
 
-int stepsB = 0;     //base # of steps
-int stepsS = 0;     //shoulder # of steps
-int stepsE = 0;     //elbow # of steps
+byte steps[3];
+int stepsB, stepsS, stepsE = 0;
 bool grip = false;  //gripper closed?
 
-int col1 = 1;   //motor 1 arr y index   range:1-4
-int col2 = 1;   //motor 2 arr y index   1 is subtracted
-int col3 = 1;   //motor 3 arr y index   at the other side
-
+byte col1 = 2;   //1 for one direction
+byte col2 = 2;   //2 for still
+byte col3 = 2;   //3 for other direction
+                 //if 0 is recieved there is no connection
+byte data[3];       //used to create data for transmission
 void setup() {
   lcd.begin(16, 2);     //LCD
   Serial.begin(9600);   //LoRa Baud rate (any should work)
 }
 
-void loop() {
+void loop() { 
   xVal1 = analogRead(x1);   //read inputs
   yVal1 = analogRead(y1);
   sVal1 = analogRead(s1);
@@ -39,75 +36,56 @@ void loop() {
   writeLoRa();
 
   lcd.clear();
-  lcd.setCursor(0,0);
   lcd.print("B:" + String(stepsB));
   lcd.setCursor(8,0);
   lcd.print("S:" + String(stepsS));
   lcd.setCursor(0,1);
   lcd.print("E:" + String(stepsE));
-  delay(100);
+  delay(50);
 }
 
 void readA1(){
-    switch(xVal1){
+   switch(xVal1){
     case 600 ... 1024:   //baseR
-     if(stepsB < 100){
-      if(col1 >= 4){col1=1;}
-      else{col1 +=1;}
-      stepsB +=1;      
-     }
-    break;
-   case 0 ... 400:         //baseL
-     if(stepsB > -100){
-      if(col1==1){col1=4;}
-      else{col1 -=1;}      
-      stepsB -=1;        
-     }
-    break;
-  }
-  
+     col1 = 1; 
+     stepsB +=1; break;
+    case 0 ... 400:         //baseL
+     col1 = 2;
+     stepsB -=1; break;
+    default:
+     col1 = 3; break;
+  }  
   switch(yVal1){
    case 600 ... 1024:    //shoulderR
-     if(stepsS > -100){
-      if(col2 >= 4){col2=1;}
-      else{col2 +=1;}
-      stepsS -=1;       
-     }
-    break;
+    col2 = 1;
+    stepsS +=1; break;
    case 0 ... 400:         //shoulderL
-     if(stepsS < 100){
-      if(col2==1){col2=4;}
-      else{col2 -=1;}
-      stepsS +=1;       
-     }
-    break;
+    col2 = 2;
+    stepsS -=1; break;
+   default:
+    col2 = 3; break;
   }
   //ADD SWITCH READ HERE!!  
 }
 
 void readA2(){
   switch(xVal2){
-    case 600 ... 1024:   //elbowR
-      if(stepsE < 100){
-       if(col3>=4){col3=1;}
-       else{col3 +=1;}
-       stepsE +=1;        
-      }
-    break;
-    case 0 ... 400:         //elbowL
-     if(stepsE > -100){
-      if(col3==1){col3=4;}
-      else{col3 -=1;}
-      stepsE -=1;        
-     }
-    break;
+    case 600 ... 1024:
+     col3 = 1;
+     stepsE +=1; break;
+    case 0 ... 400:    
+     col3 = 2;
+     stepsE -=1; break;
+    default:
+     col3 = 3; break;
   }
   //NO Y AXIS FOR A2
   //ADD SWITCH READ HERE!!  
 }
 
-void writeLoRa(){ //using x,y,z for col1,2,3
-  //only transmitting data for first motor currently
-  Serial.write(col1);
-  
+void writeLoRa(){   
+  data[0] = col1;   //order doesnt matter
+  data[1] = col2;   //just read the right way around on the other side
+  data[2] = col3;
+  Serial.write(data, 3);  
 }
