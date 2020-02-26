@@ -1,133 +1,188 @@
-int motor[4][4] = { 
-  {0, 1, 1, 0},     //stores each step in an array row
-  {0, 1, 0, 1},     //y val is stored and the corresponding...
-  {1, 0, 0, 1},     //row is then written to the pins
-  {1, 0, 1, 0}
-};    
-int col1, col2, col3 = 0; //stores positional data
-byte col[3];  //reads incoming data about how to move
-int stepsB, stepsS, stepsE = 0;
+/* stepper sequence is as follows:
+ *  step   C0 C1 C2 C3
+ *     0    1  0  1  0
+ *     1    0  1  1  0
+ *     2    0  1  0  1
+ *     3    1  0  0  1
+ */ //this is stored in the array below:
 
-const int trig1 = 50;   //collision detection pins
-const int echo1 = 51;   //one for left side, one for right
-const int trig2 = 52;
+#include <Servo.h> //only used for gripper
+Servo grip;
+ 
+int motor[4][4]={
+  {1, 0, 1, 0},
+  {0, 1, 1, 0},
+  {0, 1, 0, 1},
+  {1, 0, 0, 1}
+ };
+ 
+byte dataIn[4];     //base, shoulder, elbow, gripper
+int stepNB = 0;     //keeps track of step in sequence
+int stepNS = 0;     //sequence is 4 steps long (at top)
+int stepNE = 0;
+
+byte stepsB = 100;    //bytes are used for easier comparison of values
+byte stepsS = 100;    //no conversion between datatypes int->byte
+byte stepsE = 100;
+byte posB = 100;  //desired position of motor (in steps 0-200)
+byte posS = 100;  //100 is the default
+byte posE = 100;
+byte gripper = 0;
+
+bool move1 = false;    //collision detect variables, false start for safety
+bool move2 = false;
+const int trig = 50;
+const int echo1 = 51;
 const int echo2 = 53;
-long del1;  //will store the response times of sensors
-long del2;
-bool Move = true;
+const int led1 = 48;
+const int led2 = 49;
+unsigned long del1;
+unsigned long del2;
+int wait = 10;
 
-void setup() {
+void setup() { 
   //motor1(base)      motor2(shoulder)    motor3(elbow)     
   pinMode(2, OUTPUT); pinMode(6, OUTPUT); pinMode(10, OUTPUT);
   pinMode(3, OUTPUT); pinMode(7, OUTPUT); pinMode(11, OUTPUT);
   pinMode(4, OUTPUT); pinMode(8, OUTPUT); pinMode(12, OUTPUT);
   pinMode(5, OUTPUT); pinMode(9, OUTPUT); pinMode(13, OUTPUT);
 
-  pinMode(50, OUTPUT); pinMode(51, INPUT);  //collision sensors
-  pinMode(52, OUTPUT); pinMode(53, INPUT);
-  
-  Serial.begin(9600); //matching baud rate
+  pinMode(trig, OUTPUT); //only one trigger as theyre tied together
+  pinMode(echo1, INPUT);
+  pinMode(echo2, INPUT);
+  pinMode(led1, OUTPUT);
+  pinMode(led2, OUTPUT);
+
+  grip.attach(46);
+  Serial.begin(9600);
 }
 
 void loop() {
-  //read the data
-  while(Serial.available()<3){} //wait for all 3 bytes
-  for(int i=0; i<3; i++){
+  //Read incoming data
+  while(Serial.available()<4){}
+  for(int i=0; i<4; i++){
     if(Serial.available()>0){
-      col[i] = Serial.read();  
+      dataIn[i] = Serial.read();
+    }
+  } 
+  posB = dataIn[0];
+  posS = dataIn[1];
+  posE = dataIn[2];
+  gripper = dataIn[3]; 
+
+  canMove();
+  if((move1 + move2) == 2){ //true bool = 1, this checks both are true
+    go();
+  }
+}
+
+void go(){
+  //BASE
+  if(stepsB > posB){ //checks if position is correct
+    while(stepsB > posB){
+      if(stepNB==0){stepNB=3;}
+      else{stepNB--;}
+      digitalWrite(2, motor[stepNB][0]); //reads the array values[y][x]
+      digitalWrite(3, motor[stepNB][1]);
+      digitalWrite(4, motor[stepNB][2]); 
+      digitalWrite(5, motor[stepNB][3]);
+      stepsB--;
+      delay(wait);
+    }
+  }
+  if(stepsB < posB){
+    while(stepsB < posB){
+      if(stepNB==3){stepNB=0;}
+      else{stepNB++;}
+      digitalWrite(2, motor[stepNB][0]);
+      digitalWrite(3, motor[stepNB][1]);
+      digitalWrite(4, motor[stepNB][2]); 
+      digitalWrite(5, motor[stepNB][3]);
+      stepsB++;
+      delay(wait);
+    }
+  } 
+
+  //SHOULDER
+  if(stepsS > posS){
+    while(stepsS > posS){
+      if(stepNS==0){stepNS=3;}
+      else{stepNS--;}
+      digitalWrite(6, motor[stepNS][0]);
+      digitalWrite(7, motor[stepNS][1]);
+      digitalWrite(8, motor[stepNS][2]); 
+      digitalWrite(9, motor[stepNS][3]);
+      stepsS--;
+      delay(wait);
+    }
+  }
+  if(stepsS< posS){
+    while(stepsS < posS){
+      if(stepNS==3){stepNS=0;}
+      else{stepNS++;}
+      digitalWrite(6, motor[stepNS][0]);
+      digitalWrite(7, motor[stepNS][1]);
+      digitalWrite(8, motor[stepNS][2]); 
+      digitalWrite(9, motor[stepNS][3]);
+      stepsS++;
+      delay(wait);
     }
   }
 
-//  canMove();
-//  while(Move == false){canMove;} //keep checking for move condition
-  
-  //parse the user input
-  switch(col[0]){ //base
-    case 1:
-     if(stepsB < 100){
-      if(col1 >= 3){col1=0;}
-      else{col1 +=1;}
-      stepsB +=1;      
-     }
-     break;
-    case 2:
-     if(stepsB > -100){
-      if(col1==0){col1=3;}
-      else{col1 -=1;}      
-      stepsB -=1;        
-     }
-     break;
+  //ELBOW
+  if(stepsE > posE){
+    while(stepsE > posE){
+      if(stepNE==0){stepNE=3;}
+      else{stepNE--;}
+      digitalWrite(10, motor[stepNE][0]); 
+      digitalWrite(11, motor[stepNE][1]);
+      digitalWrite(12, motor[stepNE][2]); 
+      digitalWrite(13, motor[stepNE][3]);
+      stepsE--;
+      delay(wait);
+    }
   }
-  switch(col[1]){ //shoulder
-    case 1:
-     if(stepsS < 100){
-      if(col2 >= 3){col2=0;}
-      else{col2 +=1;}
-      stepsS +=1;      
-     }
-     break;
-    case 2:
-     if(stepsS > -100){
-      if(col2==0){col2=3;}
-      else{col2 -=1;}      
-      stepsS -=1;        
-     }
-     break;
+  if(stepsE < posE){
+    while(stepsE < posE){
+      if(stepNE==3){stepNE=0;}
+      else{stepNE++;}
+      digitalWrite(10, motor[stepNE][0]);
+      digitalWrite(11, motor[stepNE][1]);
+      digitalWrite(12, motor[stepNE][2]); 
+      digitalWrite(13, motor[stepNE][3]);
+      stepsE++;
+      delay(wait);
+    }
   }
-  switch(col[2]){ //shoulder
-    case 1:
-     if(stepsE < 100){
-      if(col3 >= 3){col3=0;}
-      else{col3 +=1;}
-      stepsE +=1;      
-     }
-     break;
-    case 2:
-     if(stepsE > -100){
-      if(col3==0){col3=3;}
-      else{col3 -=1;}      
-      stepsE -=1;        
-     }
-     break;
-  }
-
-  //write motor outputs
-  digitalWrite(2, motor[col1][0]);   //pin numbers depend on wiring
-  digitalWrite(3, motor[col1][1]);   //writes a row to the output
-  digitalWrite(4, motor[col1][2]);   //yInd1 stores the column val
-  digitalWrite(5, motor[col1][3]);
-
-  digitalWrite(6, motor[col2][0]);
-  digitalWrite(7, motor[col2][1]);
-  digitalWrite(8, motor[col2][2]);
-  digitalWrite(9, motor[col2][3]);
-
-  digitalWrite(10, motor[col3][0]);
-  digitalWrite(11, motor[col3][1]);
-  digitalWrite(12, motor[col3][2]);
-  digitalWrite(13, motor[col3][3]);
-
-  delay(50); //stops motor drivers from switching too fast
+  if(gripper > 0){grip.write(180);} else{grip.write(0);}
 }
 
 void canMove(){
-  digitalWrite(trig1, HIGH);
-  delayMicroseconds(10);      //value from datasheet
-  digitalWrite(trig1, LOW);
+  digitalWrite(trig, HIGH);
+  delayMicroseconds(10);  //from HC-SR04 datasheet
+  digitalWrite(trig, LOW);
   del1 = pulseIn(echo1, HIGH);
+    if(del1 < 400){
+      digitalWrite(led1, HIGH);
+      move1 = false;
+    }
+    else{
+      digitalWrite(led1, LOW);
+      move1 = true;
+    }
+  delay(60);
 
-  digitalWrite(trig2, HIGH);
+  digitalWrite(trig, HIGH);
   delayMicroseconds(10);
-  digitalWrite(trig2, LOW);
+  digitalWrite(trig, LOW);
   del2 = pulseIn(echo2, HIGH);
-
-  if(del1 > 300){
-    Move = false;
-  }
-  else if(del2 > 300){
-    Move = false;
-  }
-  else{
-    Move = true;
-  }
+    if(del2 < 400){
+      digitalWrite(led2, HIGH);
+      move2 = false;
+    }
+    else{
+      digitalWrite(led2, LOW);
+      move2 = true;
+    }
+  delay(60);
 }
