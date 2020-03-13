@@ -10,7 +10,7 @@ const int s2 = A5;   //switch of analog2
 int xVal1, yVal1, sVal1;  //values assigned later
 int xVal2, yVal2, sVal2;
 
-byte stepsB, stepsS, stepsE = 100; //0-99 is backwards, 100-200 is forward
+byte stepsB, stepsS, stepsE; //0-99 is backwards, 100-200 is forward
 byte gripper = 0; //needs to be byte for wireless comms
 
 byte dataOut[4];      //used to create data for transmission
